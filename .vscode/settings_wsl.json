@@ -3,5 +3,5 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "python.formatting.provider": "none",
-    "python.pythonPath": "/mnt/f/CS50P/finalproject/distributed_task_queue/venv/bin/python",
+    "python.pythonPath": "/mnt/f/CS50P/finalproject/distributed_task_queue/venv/bin/python"
 }
