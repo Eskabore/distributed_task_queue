@@ -1,0 +1,22 @@
+# Ignore Python virtual environment
+venv/
+
+# Ignore .pyc and .pyo files
+*.pyc
+*.pyo
+
+# Ignore __pycache__ directories
+__pycache__/
+
+# Ignore logs and databases
+*.log
+*.sqlite
+
+# Ignore development files
+*.swp
+*.swo
+*.swn
+*.bak
+
+# Ignore macOS files
+.DS_Store
