@@ -1,6 +1,13 @@
 # Ignore Python virtual environment
 venv/
 
+# Ignore MongoDB data directory
+mongo_data/
+
+# Ignore any .env or .env.local files containing environment variables
+.env
+.env.local
+
 # Ignore .pyc and .pyo files
 *.pyc
 *.pyo
@@ -17,6 +24,12 @@ __pycache__/
 *.swo
 *.swn
 *.bak
+
+# Ignore other common files and directories
+*.bak
+*.cache
+*.egg-info/
+dist/
 
 # Ignore macOS files
 .DS_Store
