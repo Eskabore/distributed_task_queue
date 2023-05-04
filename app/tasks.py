@@ -1,6 +1,6 @@
+from app import app
 from flask import request, jsonify
 import sys
-from app import app
 from app.database import tasks_collection, redis_conn
 from app.worker import perform_task
 from rq import Queue

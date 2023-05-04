@@ -1,6 +1,7 @@
+import sys
 from redis import Redis
 from pymongo import MongoClient
-from bson import ObjectId
+from bson.objectid import ObjectId
 from app import app
 
 # Redis connection
