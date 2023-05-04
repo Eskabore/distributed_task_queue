@@ -25,7 +25,7 @@ def index():
     return "Welcome to the Distributed Task Queue API!"
 
 # Function to create a new task
-@app.route('/tasks', methods=['POST'])
+@app.route('/tasks', methods=['POST'], content_type="application/json")
 def create_task():
     data = request.get_json()
     task_id = tasks_collection.insert_one(data).inserted_id
