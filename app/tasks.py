@@ -1,3 +1,4 @@
+import pymongo
 from app import app
 from flask import request, jsonify
 import sys
@@ -5,6 +6,7 @@ from app.database import tasks_collection, redis_conn
 from app.worker import perform_task
 from rq import Queue
 from bson import ObjectId
+from datetime import datetime
 
 
 # RQ queues
@@ -25,9 +27,16 @@ def index():
     return "Welcome to the Distributed Task Queue API!"
 
 # Function to create a new task
-@app.route('/tasks', methods=['POST'], content_type="application/json")
+@app.route('/tasks', methods=['POST'])
 def create_task():
+    if request.content_type != 'application/json':
+        return 'request Content-Type was not "application/json".', 415
+    
     data = request.get_json()
+    
+    # Add 'created_at' field with the current timestamp
+    data['created_at'] = datetime.utcnow()
+    
     task_id = tasks_collection.insert_one(data).inserted_id
 
     # Determine target queue based on priority
@@ -57,5 +66,117 @@ def get_task(task_id):
             'result': task.get('result', None)
         }
         return jsonify(response)
+    else:
+        return jsonify({'error': 'Task not found'}), 404
+
+
+# Route for monitoring task status
+@app.route('/tasks/<job_id>/status', methods=['GET'])
+def get_task_status(job_id):
+    job = None
+    for queue in [high_priority_queue, medium_priority_queue, low_priority_queue]:
+        job = queue.fetch_job(job_id)
+        if job:
+            break
+        
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    return jsonify({'status': job.get_status()}), 200
+
+
+# Function to update the status of a task
+@app.route('/tasks/<task_id>/status', methods=['PUT'])
+def update_task_status(task_id):
+    if request.content_type != 'application/json':
+        return 'request Content-Type was not "application/json".', 415
+    
+    data = request.get_json()
+    new_status = data.get('status', None)
+    if new_status:
+        tasks_collection.update_one(
+            {'_id': ObjectId(task_id)},
+            {'$set': {'status': new_status}}
+        )
+        return jsonify({'message': 'Task status updated'}), 200
+    else:
+        return jsonify({'error': 'Invalid status'}), 400
+
+    
+    
+# Function to retrieve task details
+@app.route('/tasks/<task_id>/details', methods=['GET'])
+def get_task_details(task_id):
+    task = tasks_collection.find_one({'_id': ObjectId(task_id)})
+    if task:
+        response = {
+            'task_id': str(task['_id']),
+            'description': task['description'],
+            'priority': task['priority'],
+            'created_at': task['created_at'],
+            'status': task['status']
+        }
+        return jsonify(response), 200
+    else:
+        return jsonify({'error': 'Task not found'}), 404
+
+
+# Function to retrieve all tasks
+@app.route('/tasks', methods=['GET'])
+def get_all_tasks():
+    # Get query parameters for pagination, sorting, and filtering
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 10))
+    sort_by = request.args.get('sort_by', 'created_at')
+    sort_order = request.args.get('sort_order', 'asc')
+    priority = request.args.get('priority', None)
+    status = request.args.get('status', None)
+
+    # Build filter query based on priority and status
+    filter_query = {}
+    if priority:
+        filter_query['priority'] = priority
+    if status:
+        filter_query['status'] = status
+
+    # Build sort query based on sort_by and sort_order
+    sort_query = [(sort_by, pymongo.ASCENDING if sort_order == 'asc' else pymongo.DESCENDING)]
+
+    # Retrieve tasks from collection using find(), skip(), limit(), and sort()
+    tasks = tasks_collection.find(filter_query).skip((page - 1) * per_page).limit(per_page).sort(sort_query)
+
+    # Convert tasks to JSON format
+    response = []
+    for task in tasks:
+        response.append({
+            'task_id': str(task['_id']),
+            'description': task['description'],
+            'priority': task['priority'],
+            'created_at': task['created_at'],
+            'status': task['status']
+        })
+    
+    return jsonify(response), 200
+
+
+# Function to delete a task
+@app.route('/tasks/<task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = tasks_collection.find_one({'_id': ObjectId(task_id)})
+    if task:
+        # Get the job_id from the task document
+        job_id = task['job_id']
+
+        # Delete the document from the collection
+        tasks_collection.delete_one({'_id': ObjectId(task_id)})
+
+        # Cancel the job from the queue
+        for queue in [high_priority_queue, medium_priority_queue, low_priority_queue]:
+            job = queue.fetch_job(job_id)
+            if job:
+                queue.cancel_job(job_id)
+                break
+        
+        return jsonify({'message': 'Task deleted'}), 200
     else:
         return jsonify({'error': 'Task not found'}), 404
