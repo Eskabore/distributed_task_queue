@@ -65,7 +65,7 @@ def get_task(task_id):
     if task:
         response = {
             'task_id': str(task['_id']),
-            'status': task['status'],
+            'status': task.get('status'),
             'result': task.get('result', None)
         }
         return jsonify(response)
@@ -95,19 +95,22 @@ def update_task_status(task_id):
         return 'request Content-Type was not "application/json".', 415
     
     data = request.get_json()
-    print(f"Received data: {data}")  # Add this line to debug the received data
     new_status = data.get('status', None)
+    new_result = data.get('result', None)  # Get the result from the request data
     if new_status:
+        update_data = {'status': new_status}
+        if new_result:
+            update_data['result'] = new_result  # Add the result to the update data if it's not None
+
         tasks_collection.update_one(
             {'_id': ObjectId(task_id)},
-            {'$set': {'status': new_status}}
+            {'$set': update_data}
         )
         return jsonify({'message': 'Task status updated'}), 200
     else:
         return jsonify({'error': 'Invalid status'}), 400
 
     
-# Function to retrieve task details
 @app.route('/tasks/<task_id>/details', methods=['GET'])
 def get_task_details(task_id):
     task = tasks_collection.find_one({'_id': ObjectId(task_id)})
@@ -116,12 +119,13 @@ def get_task_details(task_id):
             'task_id': str(task['_id']),
             'description': task['description'],
             'priority': task['priority'],
-            'created_at': task['created_at'],
-            'status': task['status']
+            'created_at': task.get('created_at', None),  # Use get() to avoid KeyError
+            'status': task.get('status', None)  # Use get() to avoid KeyError
         }
         return jsonify(response), 200
     else:
         return jsonify({'error': 'Task not found'}), 404
+
 
 
 # Function to retrieve all tasks
@@ -153,34 +157,34 @@ def get_all_tasks():
     for task in tasks:
         response.append({
             'task_id': str(task['_id']),
-            'description': task['description'],
-            'priority': task['priority'],
+            'description': task.get('description'),
+            'priority': task.get('priority'),
             'created_at': task.get('created_at', None),  # Use get() to avoid KeyError
-            'status': task['status'],
+            'status': task.get('status', 'unknown'),
             'result': task.get('result', None)  # Use get() for the 'result' field as well
         })
     
     return jsonify(response), 200
 
 
-# Function to delete a task
+# Function to delete a task by ID
 @app.route('/tasks/<task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = tasks_collection.find_one({'_id': ObjectId(task_id)})
     if task:
-        # Get the job_id from the task document
-        job_id = task['job_id']
-
-        # Delete the document from the collection
         tasks_collection.delete_one({'_id': ObjectId(task_id)})
 
-        # Cancel the job from the queue
-        for queue in [high_priority_queue, medium_priority_queue, low_priority_queue]:
-            job = queue.fetch_job(job_id)
-            if job:
-                queue.cancel_job(job_id)
-                break
-        
+        # Get the job_id from the task document
+        job_id = task.get('job_id', None)  # Use get() to avoid KeyError
+
+        # Cancel the corresponding job in the task queue
+        if job_id:
+            for queue in [low_priority_queue, medium_priority_queue, high_priority_queue]:
+                job = queue.fetch_job(job_id)
+                if job:
+                    job.cancel()
+                    break
+
         return jsonify({'message': 'Task deleted'}), 200
     else:
         return jsonify({'error': 'Task not found'}), 404
