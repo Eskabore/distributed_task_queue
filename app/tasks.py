@@ -37,6 +37,9 @@ def create_task():
     # Add 'created_at' field with the current timestamp
     data['created_at'] = datetime.utcnow()
     
+    # Add 'status' field with the default value 'pending'
+    data['status'] = 'pending'
+    
     task_id = tasks_collection.insert_one(data).inserted_id
 
     # Determine target queue based on priority
@@ -92,6 +95,7 @@ def update_task_status(task_id):
         return 'request Content-Type was not "application/json".', 415
     
     data = request.get_json()
+    print(f"Received data: {data}")  # Add this line to debug the received data
     new_status = data.get('status', None)
     if new_status:
         tasks_collection.update_one(
@@ -102,7 +106,6 @@ def update_task_status(task_id):
     else:
         return jsonify({'error': 'Invalid status'}), 400
 
-    
     
 # Function to retrieve task details
 @app.route('/tasks/<task_id>/details', methods=['GET'])
@@ -152,8 +155,9 @@ def get_all_tasks():
             'task_id': str(task['_id']),
             'description': task['description'],
             'priority': task['priority'],
-            'created_at': task['created_at'],
-            'status': task['status']
+            'created_at': task.get('created_at', None),  # Use get() to avoid KeyError
+            'status': task['status'],
+            'result': task.get('result', None)  # Use get() for the 'result' field as well
         })
     
     return jsonify(response), 200
