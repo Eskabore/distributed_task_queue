@@ -4,6 +4,8 @@ from app import app
 from app.database import tasks_collection, redis_conn
 from app.worker import perform_task
 from rq import Queue
+from bson import ObjectId
+
 
 # RQ queues
 low_priority_queue = Queue('low', connection=redis_conn)
@@ -17,6 +19,10 @@ try:
 except Exception as e:
     print("Error connecting to RQ queue: ", e, file=sys.stderr)
     sys.exit(1)
+
+@app.route('/', methods=['GET'])
+def index():
+    return "Welcome to the Distributed Task Queue API!"
 
 # Function to create a new task
 @app.route('/tasks', methods=['POST'])
