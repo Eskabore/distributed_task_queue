@@ -34,7 +34,11 @@ def create_task():
     
     data = request.get_json()
     
-    # Add 'created_at' field with the current timestamp
+    # Validate required fields
+    if 'description' not in data or 'priority' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Add 'created_at' field with the current timestamp as an ISO-formatted string
     data['created_at'] = datetime.utcnow()
     
     # Add 'status' field with the default value 'pending'
@@ -188,3 +192,18 @@ def delete_task(task_id):
         return jsonify({'message': 'Task deleted'}), 200
     else:
         return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/tasks/delete_all', methods=['DELETE'])
+def delete_all_tasks():
+    # Delete all tasks in the database
+    result = tasks_collection.delete_many({})
+
+    # Cancel all jobs in the task queues
+    for queue in [low_priority_queue, medium_priority_queue, high_priority_queue]:
+        job_ids = [job.id for job in queue.get_jobs()]
+        for job_id in job_ids:
+            job = queue.fetch_job(job_id)
+            if job:
+                job.cancel()
+
+    return jsonify({'message': f'{result.deleted_count} tasks deleted'}), 200
