@@ -8,6 +8,12 @@ from rq import Queue
 from bson import ObjectId
 from datetime import datetime
 
+# Priority mapping for filtering tasks by priority
+priority_mapping = {
+    "low": 0,
+    "medium": 1,
+    "high": 2
+}
 
 # RQ queues
 low_priority_queue = Queue('low', connection=redis_conn)
@@ -53,7 +59,8 @@ def create_task():
     task_id = tasks_collection.insert_one(data).inserted_id
 
     # Determine target queue based on priority
-    priority = data.get('priority', 'low')
+    priority = priority_mapping.get(data['priority'], 1)  # Default to low priority if not provided
+
     if priority == 'high':
         target_queue = high_priority_queue
     elif priority == 'medium':
@@ -80,16 +87,13 @@ def create_task():
 # Function to get the status and result of a task
 @app.route('/tasks/<task_id>', methods=['GET'])
 def get_task(task_id):
-    task = tasks_collection.find_one({'_id': ObjectId(task_id)})
-    if task:
-        response = {
-            'task_id': str(task['_id']),
-            'status': task.get('status'),
-            'result': task.get('result', None)
-        }
-        return jsonify(response)
-    else:
+    task = tasks_collection.find_one({'_id': ObjectId(task_id)}, sort=[('priority', -1), ('created_at', 1)])
+    if not task:
         return jsonify({'error': 'Task not found'}), 404
+
+    task['_id'] = str(task['_id'])
+    return jsonify(task)
+
 
 
 # Route for monitoring task status
@@ -161,7 +165,7 @@ def get_all_tasks():
     # Build filter query based on priority and status
     filter_query = {}
     if priority:
-        filter_query['priority'] = priority
+        filter_query['priority'] = priority_mapping.get(priority)
     if status:
         filter_query['status'] = status
 

@@ -29,11 +29,11 @@ except Exception as e:
 # MongoDB connection
 host = "localhost" or "127.0.0.1"
 port = "27017" or "27018" or "27019"
-database_name = "task_queue"
+database_name = "distributed_task_queues" or "task_queue"
 
-mongodb_uri = f"mongodb://{username}:{password}@{host}:{port}/{database_name}"
+mongodb_uri = f"mongodb://{username}:{password}@{host}:{port}/{database_name}?serverSelectionTimeoutMS=60000"
 client = MongoClient(mongodb_uri)
 
-print(client.server_info())
+#print(client.server_info())
 db = client[database_name]
 tasks_collection = db['tasks']
