@@ -1,5 +1,3 @@
-import time
-import random
 from app.database import tasks_collection
 from pymongo import MongoClient, ReturnDocument
 
@@ -17,7 +15,23 @@ def perform_task(worker_function, task_id, data):
     
 def clean_data(task_id, input_data):
     # Perform data cleaning
-    ...
+
+    # Step 1: Remove leading and trailing whitespaces
+    cleaned_data = input_data.strip()
+
+    # Step 2: Replace multiple spaces with a single space
+    cleaned_data = ' '.join(cleaned_data.split())
+
+    # Step 3: Convert text to lowercase
+    cleaned_data = cleaned_data.lower()
+
+    # Add more data cleaning steps as required
+
+    # Update the task status in the database
+    update_task_status(task_id, "completed")
+
+    return cleaned_data
+
 
 def transform_data(task_id, input_data):
     # Perform data transformation
