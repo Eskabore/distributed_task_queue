@@ -4,18 +4,29 @@ from app.database import tasks_collection
 from pymongo import MongoClient, ReturnDocument
 
 # Function stimulates task processing and update task status in MongoDB
-def perform_task(task_id, data):
-    # Simulate task processing time
-    processing_time = random.randint(1, 10)
-    time.sleep(processing_time)
+def perform_task(worker_function, task_id, data):
+    # Call the worker function with task_id and data as arguments
+    result = worker_function(task_id, data)
 
     # Update task status and result in MongoDB
-    result = "Task completed in {} seconds.".format(processing_time)
     tasks_collection.find_one_and_update(
         {'_id': MongoClient().task_queue.tasks_collection.ObjectId(task_id)},
         {'$set': {'status': 'completed', 'result': result}},
         return_document=ReturnDocument.AFTER
     )
+    
+def clean_data(task_id, input_data):
+    # Perform data cleaning
+    ...
+
+def transform_data(task_id, input_data):
+    # Perform data transformation
+    ...
+
+def analyze_data(task_id, input_data):
+    # Perform data analysis
+    ...
+
     
 """
 # Function stimulates task processing and update task status in MongoDB

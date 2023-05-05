@@ -26,24 +26,30 @@ except Exception as e:
 def index():
     return "Welcome to the Distributed Task Queue API!"
 
-# Function to create a new task
 @app.route('/tasks', methods=['POST'])
 def create_task():
     if request.content_type != 'application/json':
         return 'request Content-Type was not "application/json".', 415
-    
+
     data = request.get_json()
-    
+
     # Validate required fields
     if 'description' not in data or 'priority' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
-    
+
     # Add 'created_at' field with the current timestamp as an ISO-formatted string
     data['created_at'] = datetime.utcnow()
-    
+
     # Add 'status' field with the default value 'pending'
     data['status'] = 'pending'
-    
+
+    data['task_type'] = request.get_json().get('task_type', None)
+
+    allowed_task_types = ['data_cleaning', 'data_transformation', 'data_analysis']
+
+    if data['task_type'] not in allowed_task_types:
+        return jsonify({'error': 'Invalid task type'}), 400
+
     task_id = tasks_collection.insert_one(data).inserted_id
 
     # Determine target queue based on priority
@@ -55,12 +61,21 @@ def create_task():
     else:
         target_queue = low_priority_queue
 
+    task_type_to_function = {
+        'data_cleaning': clean_data,
+        'data_transformation': transform_data,
+        'data_analysis': analyze_data,
+    }
+
+    worker_function = task_type_to_function.get(data['task_type'])
+
     job = target_queue.enqueue_call(
         perform_task,
         args=(str(task_id), data),
         result_ttl=86400
     )
     return jsonify({'task_id': str(task_id), 'job_id': job.id}), 201
+
 
 # Function to get the status and result of a task
 @app.route('/tasks/<task_id>', methods=['GET'])
