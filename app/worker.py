@@ -1,5 +1,6 @@
 from app.database import tasks_collection
 from pymongo import MongoClient, ReturnDocument
+from app.task import update_task_status
 
 # Function stimulates task processing and update task status in MongoDB
 def perform_task(worker_function, task_id, data):
@@ -35,11 +36,23 @@ def clean_data(task_id, input_data):
 
 def transform_data(task_id, input_data):
     # Perform data transformation
-    ...
+    transformed_data = input_data.upper()
+
+    # Update the task status in the database
+    update_task_status(task_id, "completed")
+
+    return transformed_data
+
 
 def analyze_data(task_id, input_data):
     # Perform data analysis
-    ...
+    analysis_result = len(input_data.split())
+
+    # Update the task status in the database
+    update_task_status(task_id, "completed")
+
+    return analysis_result
+
 
     
 """
