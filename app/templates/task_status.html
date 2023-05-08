@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Task Status</h2>
+    <p>Task ID: {{ task_id }}</p>
+    <p>Status: {{ status }}</p>
+    {% if result %}
+        <p>Result: {{ result }}</p>
+    {% endif %}
+{% endblock %}
+

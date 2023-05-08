@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- submit_task.html -->
+<form method="POST">
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description" required><br>
+    <label for="priority">Priority:</label>
+    <select id="priority" name="priority">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+    </select><br>
+    <label for="task_type">Task Type:</label>
+    <select id="task_type" name="task_type">
+        <option value="data_cleaning">Data Cleaning</option>
+        <option value="data_transformation">Data Transformation</option>
+        <option value="data_analysis">Data Analysis</option>
+    </select><br>
+    <input type="submit" value="Submit Task">
+</form>
+{% endblock %}
