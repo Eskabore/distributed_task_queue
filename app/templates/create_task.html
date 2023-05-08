@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- New task submission form -->
+<form action="{{ url_for('create_task') }}" method="POST" id="task-form" onsubmit="submitForm(event)">
+    <label for="description">Task Description:</label>
+    <input type="text" id="description" name="description" required>
+
+    <label for="priority">Priority:</label>
+    <select id="priority" name="priority" required>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+    </select>
+
+    <label for="task_type">Task Type:</label>
+    <select id="task_type" name="task_type" required>
+        <option value="data_cleaning">Data Cleaning</option>
+        <option value="data_transformation">Data Transformation</option>
+        <option value="data_analysis">Data Analysis</option>
+    </select>
+
+    <input type="submit" value="Submit">
+</form>
+<script>
+    async function submitForm(event) {
+        event.preventDefault();
+        const formData = new FormData(document.getElementById('task-form'));
+        const jsonData = Object.fromEntries(formData.entries());
+        console.log(jsonData);
+
+        try {
+            const response = await fetch('/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData),
+            });
+
+            console.log(response);  // Log the response object
+
+            const responseText = await response.text();  // Add this line to get the response content as text
+            console.log(responseText);  // Add this line to log the response content
+
+            if (response.ok) {
+                const responseData = JSON.parse(responseText);
+                window.location.href = `/tasks/${responseData.task_id}/details`;
+            } else {
+                throw new Error('Error submitting task');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error submitting task');
+        }
+    }
+</script>
+{% endblock %}
