@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Distributed Task Queue{% endblock %}</title>
+    <!-- Add any CSS or JavaScript dependencies you want to include -->
+</head>
+
+<body>
+    <header>
+        <h1>Task Queue</h1>
+    </header>
+    <main>
+        {% block content %}
+        <!-- Content from other templates will be inserted here -->
+        <!-- Add this section inside the <body> tag, preferably after the <header> tag -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul class="flashes">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+        {% endblock %}
+    </main>
+    <footer>
+        <!-- Add your footer elements here, like copyright information -->
+    </footer>
+</body>
+
+</html>
