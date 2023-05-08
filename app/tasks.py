@@ -1,12 +1,12 @@
 import pymongo
 from app import app
-from flask import request, jsonify
+from flask import request, jsonify, render_template, redirect, url_for, flash
 import sys
 from app.database import tasks_collection, redis_conn
-from app.worker import perform_task
 from rq import Queue
 from bson import ObjectId
 from datetime import datetime
+from app.worker import clean_data, transform_data, analyze_data
 
 # Priority mapping for filtering tasks by priority
 priority_mapping = {
@@ -30,18 +30,35 @@ except Exception as e:
 
 @app.route('/', methods=['GET'])
 def index():
-    return "Welcome to the Distributed Task Queue API!"
+    return render_template('index.html')
 
 @app.route('/tasks', methods=['POST'])
 def create_task():
     if request.content_type != 'application/json':
-        return 'request Content-Type was not "application/json".', 415
+        return jsonify({'error': 'Did not attempt to load JSON data because the request Content-Type was not "application/json".'}), 415
 
-    data = request.get_json()
+    task_data = request.get_json()
+    if not task_data or 'description' not in task_data or 'priority' not in task_data or 'task_type' not in task_data:
+        return jsonify({'error': 'Missing required fields'}), 400
 
+    task = {
+        'description': task_data['description'],
+        'priority': task_data['priority'],
+        'task_type': task_data['task_type'],
+        'created_at': datetime.utcnow(),
+        'status': 'queued'
+    }
+
+    inserted_task = tasks_collection.insert_one(task)
+    return jsonify({'task_id': str(inserted_task.inserted_id)}), 201
+
+
+# New function to create a task with the given data
+def create_task_with_data(data):
     # Validate required fields
     if 'description' not in data or 'priority' not in data:
-        return jsonify({'error': 'Missing required fields'}), 400
+        return {'error': 'Missing required fields'}, 400
+
 
     # Add 'created_at' field with the current timestamp as an ISO-formatted string
     data['created_at'] = datetime.utcnow()
@@ -74,12 +91,9 @@ def create_task():
         'data_analysis': analyze_data,
     }
 
-    worker_function = task_type_to_function.get(data['task_type'])
-
     job = target_queue.enqueue_call(
-        perform_task,
-        args=(str(task_id), data),
-        result_ttl=86400
+    args=(str(task_id), data, data['task_type']),  # Pass task_type instead of worker_function
+    result_ttl=86400
     )
     return jsonify({'task_id': str(task_id), 'job_id': job.id}), 201
 
@@ -108,7 +122,8 @@ def get_task_status(job_id):
     if not job:
         return jsonify({'error': 'Job not found'}), 404
     
-    return jsonify({'status': job.get_status()}), 200
+    task_status = job.get_status()
+    return render_template('task_status.html', task_id=job_id, status=task_status, result=job.result if task_status == 'finished' else None)
 
 
 # Function to update the status of a task
@@ -226,3 +241,4 @@ def delete_all_tasks():
                 job.cancel()
 
     return jsonify({'message': f'{result.deleted_count} tasks deleted'}), 200
+
