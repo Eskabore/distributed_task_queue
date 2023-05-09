@@ -2,7 +2,7 @@
 
 {% block content %}
 <!-- New task submission form -->
-<form action="{{ url_for('create_task') }}" method="POST" id="task-form" onsubmit="submitForm(event)">
+<form action="{{ url_for('create_task') }}" method="POST" id="task-form">
     <label for="description">Task Description:</label>
     <input type="text" id="description" name="description" required>
 
@@ -23,36 +23,27 @@
     <input type="submit" value="Submit">
 </form>
 <script>
-    async function submitForm(event) {
-        event.preventDefault();
-        const formData = new FormData(document.getElementById('task-form'));
-        const jsonData = Object.fromEntries(formData.entries());
-        console.log(jsonData);
+    document.getElementById('submit-task').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const description = document.getElementById('description').value;
+        const priority = document.getElementById('priority').value;
+        const task_type = document.getElementById('task_type').value;
 
-        try {
-            const response = await fetch('/tasks', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(jsonData),
-            });
+        const response = await fetch('/tasks/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ description, priority, task_type }),
+        });
 
-            console.log(response);  // Log the response object
-
-            const responseText = await response.text();  // Add this line to get the response content as text
-            console.log(responseText);  // Add this line to log the response content
-
-            if (response.ok) {
-                const responseData = JSON.parse(responseText);
-                window.location.href = `/tasks/${responseData.task_id}/details`;
-            } else {
-                throw new Error('Error submitting task');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error submitting task');
+        if (response.ok) {
+            const data = await response.json();
+            const task_id = data.task_id;
+            window.location.href = `/tasks/${task_id}`;
+        } else {
+            console.error('Error submitting task:', response.statusText);
         }
-    }
+    });
 </script>
 {% endblock %}
