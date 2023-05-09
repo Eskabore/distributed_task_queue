@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}View Task{% endblock %}
+
+{% block content %}
+<h2>Task Details</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Task ID</th>
+            <th>Description</th>
+            <th>Task Type</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>{{ task['_id'] }}</td>
+            <td>{{ task['description'] }}</td>
+            <td>{{ task['task_type'] }}</td>
+            <td>{{ task['priority'] }}</td>
+            <td>{{ task['status'] }}</td>
+            <td>{{ task['created_at'] }}</td>
+        </tr>
+    </tbody>
+</table>
+{% endblock %}
