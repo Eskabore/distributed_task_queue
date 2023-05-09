@@ -7,6 +7,7 @@ from rq import Queue
 from bson import ObjectId
 from datetime import datetime
 from app.worker import clean_data, transform_data, analyze_data
+from app.task import Task
 
 # Priority mapping for filtering tasks by priority
 priority_mapping = {
@@ -32,46 +33,48 @@ except Exception as e:
 def index():
     return render_template('index.html')
 
-@app.route('/tasks', methods=['POST'])
+@app.route('/tasks/create', methods=['GET', 'POST'])
 def create_task():
-    if request.content_type != 'application/json':
-        return jsonify({'error': 'Did not attempt to load JSON data because the request Content-Type was not "application/json".'}), 415
+    if request.method == 'POST':
+        task_data = {
+            'description': request.form['description'],
+            'priority': request.form['priority'],
+            'task_type': request.form['task_type'],
+        }
+        
+        response, status = create_task_with_data(task_data)
 
-    task_data = request.get_json()
-    if not task_data or 'description' not in task_data or 'priority' not in task_data or 'task_type' not in task_data:
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    task = {
-        'description': task_data['description'],
-        'priority': task_data['priority'],
-        'task_type': task_data['task_type'],
-        'created_at': datetime.utcnow(),
-        'status': 'queued'
-    }
-
-    inserted_task = tasks_collection.insert_one(task)
-    return jsonify({'task_id': str(inserted_task.inserted_id)}), 201
+        if status == 201:
+            task_id = response['task_id']
+            flash(f'Task created successfully with ID: {task_id}')
+            return redirect(url_for('get_task', task_id=task_id))
+        else:
+            flash(f'Error creating task: {response["error"]}')
+            return render_template('create_task.html'), status
+    else:
+        return render_template('create_task.html')
 
 
 # New function to create a task with the given data
 def create_task_with_data(data):
     # Validate required fields
-    if 'description' not in data or 'priority' not in data:
+    if 'description' not in data or 'priority' not in data or 'task_type' not in data:
         return {'error': 'Missing required fields'}, 400
-
+    
+    # Create a Task object
+    new_task = Task(data)
+    # Save the task to the database
+    new_task.save()
 
     # Add 'created_at' field with the current timestamp as an ISO-formatted string
     data['created_at'] = datetime.utcnow()
-
     # Add 'status' field with the default value 'pending'
     data['status'] = 'pending'
-
-    data['task_type'] = request.get_json().get('task_type', None)
 
     allowed_task_types = ['data_cleaning', 'data_transformation', 'data_analysis']
 
     if data['task_type'] not in allowed_task_types:
-        return jsonify({'error': 'Invalid task type'}), 400
+        return {'error': 'Invalid task type'}, 400
 
     task_id = tasks_collection.insert_one(data).inserted_id
 
@@ -91,11 +94,17 @@ def create_task_with_data(data):
         'data_analysis': analyze_data,
     }
 
+    worker_function = task_type_to_function[data['task_type']]
+
     job = target_queue.enqueue_call(
-    args=(str(task_id), data, data['task_type']),  # Pass task_type instead of worker_function
+    func=task_type_to_function[data['task_type']],
+    args=(str(task_id), data),
     result_ttl=86400
-    )
-    return jsonify({'task_id': str(task_id), 'job_id': job.id}), 201
+)
+
+    return {'task_id': str(task_id)}, 201
+
+
 
 
 # Function to get the status and result of a task
@@ -103,10 +112,10 @@ def create_task_with_data(data):
 def get_task(task_id):
     task = tasks_collection.find_one({'_id': ObjectId(task_id)}, sort=[('priority', -1), ('created_at', 1)])
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        flash('Task not found')
+        return redirect(url_for('index'))
 
-    task['_id'] = str(task['_id'])
-    return jsonify(task)
+    return render_template('view_task.html', task=task)
 
 
 
@@ -167,7 +176,7 @@ def get_task_details(task_id):
 
 
 # Function to retrieve all tasks
-@app.route('/tasks', methods=['GET'])
+@app.route('/tasks/view', methods=['GET'])
 def get_all_tasks():
     # Get query parameters for pagination, sorting, and filtering
     page = int(request.args.get('page', 1))
@@ -176,13 +185,22 @@ def get_all_tasks():
     sort_order = request.args.get('sort_order', 'asc')
     priority = request.args.get('priority', None)
     status = request.args.get('status', None)
+    search = request.args.get('search', None)
 
+    tasks_data = get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, search)
+
+    # Render the tasks_data in the template (adapt this to your needs)
+    return render_template('tasks_view.html', tasks=tasks_data)
+
+def get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, search):
     # Build filter query based on priority and status
     filter_query = {}
     if priority:
         filter_query['priority'] = priority_mapping.get(priority)
     if status:
         filter_query['status'] = status
+    if search:
+        filter_query['description'] = {'$regex': search, '$options': 'i'}
 
     # Build sort query based on sort_by and sort_order
     sort_query = [(sort_by, pymongo.ASCENDING if sort_order == 'asc' else pymongo.DESCENDING)]
@@ -193,16 +211,19 @@ def get_all_tasks():
     # Convert tasks to JSON format
     response = []
     for task in tasks:
+        task_obj = Task(task)
+        task_obj.id = str(task['_id'])
         response.append({
-            'task_id': str(task['_id']),
-            'description': task.get('description'),
-            'priority': task.get('priority'),
-            'created_at': task.get('created_at', None),  # Use get() to avoid KeyError
-            'status': task.get('status', 'unknown'),
-            'result': task.get('result', None)  # Use get() for the 'result' field as well
+            'task_id': task_obj.id,
+            'description': task_obj.input_data.get('description'),
+            'priority': task_obj.input_data.get('priority'),
+            'created_at': task_obj.created_at,
+            'status': task_obj.status,
+            'result': task_obj.result
         })
-    
-    return jsonify(response), 200
+
+    return response
+
 
 
 # Function to delete a task by ID
