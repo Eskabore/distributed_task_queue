@@ -11,9 +11,6 @@ from app import app
 dotenv_path = "/mnt/f/CS50P/finalproject/distributed_task_queue/venv/.env"
 load_dotenv(dotenv_path)
 
-# Get the username and password from the environment variables
-username = os.getenv("USERNAME")
-password = os.getenv("PASSWORD")
 
 # Redis connection
 redis_conn = Redis(host=app.config['REDIS_HOST'], port=app.config['REDIS_PORT'])
@@ -28,11 +25,9 @@ except Exception as e:
     sys.exit(1)
 
 # MongoDB connection
-host = "localhost" or "127.0.0.1"
-port = "27017" or "27018" or "27019"
 database_name = "distributed_task_queues" or "task_queue"
 
-uri = f"mongodb+srv://{username}:{password}@cluster0.tjer16g.mongodb.net/?retryWrites=true&w=majority"
+uri = os.getenv("MONGODB_CONNECTION_STRING")
 
 # Create a new client and connect to the server
 client = MongoClient(uri, server_api=ServerApi('1'))
