@@ -4,14 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Distributed Task Queue{% endblock %}</title>
-    <!-- Add any CSS or JavaScript dependencies you want to include -->
+    <title>{% block title %}My Data Processing App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 
 <body>
     <header>
-        <h1>Task Queue</h1>
+        <h1>My Data Processing App</h1>
     </header>
+    <nav class="navbar">
+        <ul class="nav-items">
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('create_task') }}">Submit Task</a></li>
+            <li><a href="{{ url_for('get_all_tasks') }}">View Tasks</a></li>
+        </ul>
+    </nav>
     <main>
         {% block content %}
         <!-- Content from other templates will be inserted here -->
@@ -28,7 +35,7 @@
         {% endblock %}
     </main>
     <footer>
-        <!-- Add your footer elements here, like copyright information -->
+        <p>&copy; DiFfrenzZ 2023 - My Data Processing App</p>
     </footer>
 </body>
 

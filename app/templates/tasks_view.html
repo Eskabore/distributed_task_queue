@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}View Tasks{% endblock %}
+
+{% block content %}
+<h1>Tasks</h1>
+<form action="{{ url_for('get_all_tasks') }}" method="GET" class="search-form">
+    <input type="text" name="search" placeholder="Search for tasks..." value="{{ request.args.get('search', '') }}">
+    <button type="submit">Search</button>
+</form>
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">Task ID</th>
+            <th scope="col">Description</th>
+            <th scope="col">Priority</th>
+            <th scope="col">Created At</th>
+            <th scope="col">Status</th>
+            <th scope="col">Result</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in tasks %}
+        <tr>
+            <td>{{ task.task_id }}</td>
+            <td>{{ task.description }}</td>
+            <td>{{ task.priority }}</td>
+            <td>{{ task.created_at }}</td>
+            <td>{{ task.status }}</td>
+            <td>{{ task.result }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% with pagination = pagination %}
+<div class="pagination">
+    <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo;</a>
+    {% for i in range(1, pagination.total_pages + 1) %}
+    {% if i == pagination.current_page %}
+    <a class="active" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}">{{ i }}</a>
+    {% else %}
+    <a href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}">{{ i }}</a>
+    {% endif %}
+    {% endfor %}
+    <a href="?page={{ pagination.total_pages }}{% if search %}&search={{ search }}{% endif %}">&raquo;</a>
+</div>
+{% endwith %}
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- New task submission form -->
+<form action="{{ url_for('create_task') }}" method="POST" id="task-form">
+    <label for="description">Task Description:</label>
+    <input type="text" id="description" name="description" required>
+
+    <label for="priority">Priority:</label>
+    <select id="priority" name="priority" required>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+    </select>
+
+    <label for="task_type">Task Type:</label>
+    <select id="task_type" name="task_type" required>
+        <option value="data_cleaning">Data Cleaning</option>
+        <option value="data_transformation">Data Transformation</option>
+        <option value="data_analysis">Data Analysis</option>
+    </select>
+
+    <input type="submit" value="Submit">
+</form>
+<script>
+    document.getElementById('submit-task').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const description = document.getElementById('description').value;
+        const priority = document.getElementById('priority').value;
+        const task_type = document.getElementById('task_type').value;
+
+        const response = await fetch('/tasks/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ description, priority, task_type }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const task_id = data.task_id;
+            window.location.href = `/tasks/${task_id}`;
+        } else {
+            console.error('Error submitting task:', response.statusText);
+        }
+    });
+</script>
+{% endblock %}
