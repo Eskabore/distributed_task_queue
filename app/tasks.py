@@ -144,6 +144,9 @@ def update_task_status(task_id):
     data = request.get_json()
     new_status = data.get('status', None)
     new_result = data.get('result', None)  # Get the result from the request data
+    if new_result:
+        update_data['result'] = new_result
+        print("New result:", new_result)
     if new_status:
         update_data = {'status': new_status}
         if new_result:
@@ -157,6 +160,9 @@ def update_task_status(task_id):
     else:
         return jsonify({'error': 'Invalid status'}), 400
 
+    if new_result:
+        update_data['result'] = new_result
+        print("New result:", new_result)
     
 @app.route('/tasks/<task_id>/details', methods=['GET'])
 def get_task_details(task_id):
@@ -189,8 +195,9 @@ def get_all_tasks():
 
     tasks_data = get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, search)
 
-    # Render the tasks_data in the template (adapt this to your needs)
-    return render_template('tasks_view.html', tasks=tasks_data)
+    # Render the tasks_data and pagination data in the template (adapt this to your needs)
+    return render_template('tasks_view.html', tasks=tasks_data['tasks'], pagination=tasks_data['pagination'])
+
 
 def get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, search):
     # Build filter query based on priority and status
@@ -208,12 +215,25 @@ def get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, se
     # Retrieve tasks from collection using find(), skip(), limit(), and sort()
     tasks = tasks_collection.find(filter_query).skip((page - 1) * per_page).limit(per_page).sort(sort_query)
 
+    # Get the total number of tasks
+    total_tasks = tasks_collection.count_documents(filter_query)
+
+    # Calculate the total number of pages
+    total_pages = total_tasks // per_page + (1 if total_tasks % per_page > 0 else 0)
+
     # Convert tasks to JSON format
-    response = []
+    response = {
+        'tasks': [],
+        'pagination': {
+            'current_page': page,
+            'total_pages': total_pages,
+            'per_page': per_page
+        }
+    }
     for task in tasks:
         task_obj = Task(task)
         task_obj.id = str(task['_id'])
-        response.append({
+        response['tasks'].append({
             'task_id': task_obj.id,
             'description': task_obj.input_data.get('description'),
             'priority': task_obj.input_data.get('priority'),
@@ -223,6 +243,7 @@ def get_all_tasks_data(page, per_page, sort_by, sort_order, priority, status, se
         })
 
     return response
+
 
 
 
